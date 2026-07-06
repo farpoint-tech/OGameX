@@ -9,9 +9,16 @@ services:
      - ogame-dbdata:/var/lib/mysql
      - ./mysql/my.cnf:/etc/mysql/my.cnf
     # MariaDB port is not exposed to the host machine in production.
+    # Credentials are read from the .env file (see .env.example-prod).
+    # DB_ROOT_PASSWORD and DB_PASSWORD are required: compose fails fast
+    # instead of provisioning the database with known default credentials.
+    # Note: these values only take effect on the first initialization of the
+    # database volume; changing them later requires updating the DB manually.
     environment:
-      MYSQL_DATABASE: laravel
-      MYSQL_ROOT_PASSWORD: toor
+      MYSQL_DATABASE: ${DB_DATABASE:-laravel}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?Set DB_ROOT_PASSWORD in .env (see .env.example-prod)}
+      MYSQL_USER: ${DB_USERNAME:-ogamex_app}
+      MYSQL_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env (see .env.example-prod)}
       SERVICE_TAGS: dev
       SERVICE_NAME: mysql
     networks:
