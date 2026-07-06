@@ -290,7 +290,7 @@ class MoonDestructionMission extends GameMission
 
             // Delete the moon (this will cascade to buildings, units, queues)
             $targetMoon->abandonPlanet();
-        });
+        }, 3);
 
         // Refresh the mission so planet_id_to reflects the null value written by abandonPlanet.
         // Without this, startReturn would use the stale moon ID and violate the FK constraint.

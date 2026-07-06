@@ -230,7 +230,7 @@ class MissileMission extends GameMission
                 }
 
                 $defenderTarget->save();
-            });
+            }, 3);
 
             // Get defense counts AFTER attack for reporting
             foreach ($defensesBeforeAttack as $machineName => &$defenseData) {

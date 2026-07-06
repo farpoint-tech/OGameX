@@ -1141,7 +1141,7 @@ class PlanetService
             } else {
                 throw new Exception('Could not acquire planet update lock.');
             }
-        });
+        }, 3);
     }
 
     /**
@@ -1857,7 +1857,7 @@ class PlanetService
             }
 
             return true;
-        });
+        }, 3);
     }
 
     /**

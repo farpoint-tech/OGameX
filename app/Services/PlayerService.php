@@ -634,7 +634,7 @@ class PlayerService
             } else {
                 throw new Exception('Could not acquire player update lock.');
             }
-        });
+        }, 3);
     }
 
     /**
@@ -728,7 +728,7 @@ class PlayerService
             } else {
                 throw new Exception('Could not acquire update fleet mission planet lock.');
             }
-        });
+        }, 3);
     }
 
     /**

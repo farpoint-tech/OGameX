@@ -60,7 +60,25 @@ class FortifyServiceProvider extends ServiceProvider
         Fortify::authenticateUsing(function (Request $request) {
             $user = User::where('email', $request->email)->first();
 
-            if (!$user || !Hash::check($request->password, $user->password)) {
+            // Constant-time authentication: ALWAYS run a bcrypt hash comparison,
+            // even when the user does not exist, so response timing does not
+            // reveal whether an email is registered (user enumeration / timing
+            // attack protection). When there is no user we hash-check against a
+            // fixed dummy bcrypt hash which can never match.
+            $dummyHash = '$2y$12$usdvIvVELErVXqBoADgxSuWNb3JXpVVVJGw3EKW.iC.8UvUtGyxJK';
+            $passwordCorrect = Hash::check(
+                $request->password,
+                $user?->password ?? $dummyHash
+            );
+
+            // Log every attempt (success + failure) to the security channel.
+            Log::channel('security')->info('Login attempt', [
+                'email' => $request->input(Fortify::username()),
+                'ip' => $request->ip(),
+                'success' => $user && $passwordCorrect,
+            ]);
+
+            if (!$user || !$passwordCorrect) {
                 return;
             }
 

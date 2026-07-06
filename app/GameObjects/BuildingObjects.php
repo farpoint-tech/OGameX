@@ -155,7 +155,7 @@ class BuildingObjects
         $metalStorage->price = new GameObjectPrice(1000, 0, 0, 0, 2);
 
         $metalStorage->storage = new GameObjectStorage();
-        $metalStorage->storage->metal = 'return  5000 * floor(2.5 * exp(20 * $object_level / 33));';
+        $metalStorage->storage->metal = fn (int $object_level) => 5000 * floor(2.5 * exp(20 * $object_level / 33));
 
         $metalStorage->assets = new GameObjectAssets();
         $metalStorage->assets->imgMicro = 'metal_store_micro.jpg';
@@ -173,7 +173,7 @@ class BuildingObjects
         $crystalStorage->description_long = __('t_resources.crystal_store.description_long');
         $crystalStorage->price = new GameObjectPrice(1000, 500, 0, 0, 2);
         $crystalStorage->storage = new GameObjectStorage();
-        $crystalStorage->storage->crystal = 'return  5000 * floor(2.5 * exp(20 * $object_level / 33));';
+        $crystalStorage->storage->crystal = fn (int $object_level) => 5000 * floor(2.5 * exp(20 * $object_level / 33));
 
         $crystalStorage->assets = new GameObjectAssets();
         $crystalStorage->assets->imgMicro = 'crystal_store_micro.jpg';
@@ -192,7 +192,7 @@ class BuildingObjects
 
         $deuteriumTank->price = new GameObjectPrice(1000, 1000, 0, 0, 2);
         $deuteriumTank->storage = new GameObjectStorage();
-        $deuteriumTank->storage->deuterium = 'return  5000 * floor(2.5 * exp(20 * $object_level / 33));';
+        $deuteriumTank->storage->deuterium = fn (int $object_level) => 5000 * floor(2.5 * exp(20 * $object_level / 33));
 
         $deuteriumTank->assets = new GameObjectAssets();
         $deuteriumTank->assets->imgMicro = 'deuterium_store_micro.jpg';

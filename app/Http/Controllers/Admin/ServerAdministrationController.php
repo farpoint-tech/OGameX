@@ -593,7 +593,7 @@ class ServerAdministrationController extends OGameController
                 }
 
                 $message = "Mission #{$mission->id} processed successfully.";
-            });
+            }, 3);
 
             return redirect()->route('admin.server-administration.index')
                 ->with('status', $message);
@@ -646,7 +646,7 @@ class ServerAdministrationController extends OGameController
                 $mission->save();
 
                 $message = "Mission #{$mission->id} recovered to {$homeworld->getPlanetCoordinates()->asString()}.";
-            });
+            }, 3);
 
             return redirect()->route('admin.server-administration.index')
                 ->with('status', $message);

@@ -401,7 +401,7 @@ class MerchantService
                 }
 
                 return $receivedAmounts;
-            });
+            }, 3);
 
             return [
                 'success' => true,

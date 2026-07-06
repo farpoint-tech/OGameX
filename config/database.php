@@ -31,6 +31,9 @@ return [
 
     'connections' => [
 
+        // NOTE: SQLite is intended for local development and testing ONLY.
+        // It has poor write concurrency which makes it unsuitable for a
+        // multiplayer game server. Use MySQL/MariaDB in production.
         'sqlite' => [
             'driver' => 'sqlite',
             'url' => env('DB_URL'),

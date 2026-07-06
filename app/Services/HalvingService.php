@@ -210,7 +210,7 @@ class HalvingService
                 'new_balance' => $lockedUser->dark_matter,
                 'remaining_time' => $timeValues['remaining_time'],
             ];
-        });
+        }, 3);
 
         return $result;
     }
@@ -294,7 +294,7 @@ class HalvingService
                 'new_balance' => $lockedUser->dark_matter,
                 'remaining_time' => $timeValues['remaining_time'],
             ];
-        });
+        }, 3);
 
         return $result;
     }
@@ -428,7 +428,7 @@ class HalvingService
                 'new_balance' => $lockedUser->dark_matter,
                 'remaining_time' => $newRemainingTime,
             ];
-        });
+        }, 3);
 
         return $result;
     }
@@ -521,7 +521,7 @@ class HalvingService
                 'cost' => $cost,
                 'new_balance' => $lockedUser->dark_matter,
             ];
-        });
+        }, 3);
 
         return $result;
     }
