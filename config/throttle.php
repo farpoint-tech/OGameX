@@ -1,7 +1,6 @@
 <?php
 
 return [
-
     /*
     |--------------------------------------------------------------------------
     | Game Rate Limiting
@@ -23,5 +22,4 @@ return [
     'game_per_minute' => (int) env('THROTTLE_GAME_PER_MINUTE', 120),
 
     'game_by' => env('THROTTLE_GAME_BY', 'user'),
-
 ];

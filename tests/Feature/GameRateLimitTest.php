@@ -11,11 +11,35 @@ use Tests\AccountTestCase;
 class GameRateLimitTest extends AccountTestCase
 {
     /**
+     * Ensure the current user does not have the admin role (the first
+     * registered user automatically becomes admin and would be exempt from
+     * rate limiting). Reloads the application afterwards so the auth guard
+     * does not serve a stale cached roles relation.
+     */
+    private function ensureNormalUser(): void
+    {
+        $this->artisan('ogamex:admin:remove-role', ['username' => auth()->user()->username]);
+        $this->reloadApplication();
+    }
+
+    /**
+     * Ensure the current user has the admin role and reload the application
+     * so the auth guard picks up the fresh roles relation.
+     */
+    private function ensureAdminUser(): void
+    {
+        $this->artisan('ogamex:admin:assign-role', ['username' => auth()->user()->username]);
+        $this->reloadApplication();
+    }
+
+    /**
      * Verify that normal requests below the limit pass through and include
      * rate limit headers.
      */
     public function testRequestsBelowLimitPassThrough(): void
     {
+        $this->ensureNormalUser();
+
         // Move past any requests recorded during account setup.
         $this->travel(2)->minutes();
 
@@ -33,6 +57,8 @@ class GameRateLimitTest extends AccountTestCase
      */
     public function testExceedingLimitReturns429(): void
     {
+        $this->ensureNormalUser();
+
         // Lower the limit so the test doesn't need 120+ requests.
         config(['throttle.game_per_minute' => 3]);
 
@@ -60,6 +86,8 @@ class GameRateLimitTest extends AccountTestCase
      */
     public function testGameEndpointsShareSameBucket(): void
     {
+        $this->ensureNormalUser();
+
         config(['throttle.game_per_minute' => 3]);
         $this->travel(2)->minutes();
 
@@ -76,11 +104,10 @@ class GameRateLimitTest extends AccountTestCase
      */
     public function testAdminUsersAreExemptFromRateLimit(): void
     {
+        $this->ensureAdminUser();
+
         config(['throttle.game_per_minute' => 3]);
         $this->travel(2)->minutes();
-
-        // Assign the admin role to the current user.
-        $this->artisan('ogamex:admin:assign-role', ['username' => auth()->user()->username]);
 
         // Well above the limit of 3: all requests should pass.
         for ($i = 0; $i < 6; $i++) {
@@ -94,10 +121,10 @@ class GameRateLimitTest extends AccountTestCase
      */
     public function testAdminRoutesAreNotRateLimited(): void
     {
+        $this->ensureAdminUser();
+
         config(['throttle.game_per_minute' => 3]);
         $this->travel(2)->minutes();
-
-        $this->artisan('ogamex:admin:assign-role', ['username' => auth()->user()->username]);
 
         for ($i = 0; $i < 6; $i++) {
             $response = $this->get('/admin/server-settings');
