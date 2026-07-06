@@ -2393,14 +2393,17 @@ class PlanetService
     {
         $building = ObjectService::getBuildingObjectByMachineName($machine_name);
 
-        // NOTE: $object_level is used by eval() function in the formula.
         if (!$object_level) {
             $object_level = $this->getObjectLevel($machine_name);
         }
+        $object_level = (int)$object_level;
 
-        $storage_metal = eval($building->storage->metal);
-        $storage_crystal = eval($building->storage->crystal);
-        $storage_deuterium = eval($building->storage->deuterium);
+        // Storage formulas are closures defined on the game object (legacy
+        // string formulas are still evaluated via a deprecated eval() fallback
+        // inside GameObjectStorage).
+        $storage_metal = $building->storage->calculateMetal($object_level);
+        $storage_crystal = $building->storage->calculateCrystal($object_level);
+        $storage_deuterium = $building->storage->calculateDeuterium($object_level);
 
         return new Resources($storage_metal, $storage_crystal, $storage_deuterium, 0);
     }
