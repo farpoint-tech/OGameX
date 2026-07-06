@@ -3,6 +3,7 @@
 namespace OGame\Jobs;
 
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
@@ -10,15 +11,46 @@ use Illuminate\Support\Facades\Log;
 use OGame\Models\DebrisField;
 use OGame\Models\Enums\PlanetType;
 use OGame\Models\Planet;
-class CreateLegorMoon implements ShouldQueue
+use Throwable;
+
+class CreateLegorMoon implements ShouldQueue, ShouldBeUnique
 {
     use Dispatchable;
     use InteractsWithQueue;
     use Queueable;
 
+    /**
+     * The number of times the job may be attempted.
+     */
+    public int $tries = 3;
+
+    /**
+     * The number of seconds to wait before retrying the job.
+     */
+    public int $backoff = 10;
+
+    /**
+     * The number of seconds the job can run before timing out.
+     */
+    public int $timeout = 60;
+
+    /**
+     * The number of seconds after which the job's unique lock will be released.
+     */
+    public int $uniqueFor = 3600;
+
     public function __construct(
         private int $planetId
     ) {
+    }
+
+    /**
+     * The unique ID of the job, so only one moon creation job
+     * per planet can be queued at a time.
+     */
+    public function uniqueId(): string
+    {
+        return (string) $this->planetId;
     }
 
     public function handle(): void
@@ -90,6 +122,17 @@ class CreateLegorMoon implements ShouldQueue
         $moon->save();
 
         Log::info("CreateLegorMoon: Created moon for planet {$this->planetId} with diameter {$diameter}km");
+    }
+
+    /**
+     * Handle a job failure after all retries have been exhausted.
+     */
+    public function failed(Throwable $exception): void
+    {
+        Log::error('CreateLegorMoon failed', [
+            'planet_id' => $this->planetId,
+            'exception' => $exception->getMessage(),
+        ]);
     }
 
     /**

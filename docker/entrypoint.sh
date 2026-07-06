@@ -27,7 +27,22 @@ if [ "$role" = "scheduler" ]; then
         sleep 60
     done
 elif [ "$role" = "queue" ]; then
-      php /var/www/artisan queue:work --verbose --no-interaction
+    # Queue worker with restart supervision: if the worker crashes or exits
+    # (e.g. after --max-time/--max-jobs), it is restarted automatically.
+    while true; do
+        php /var/www/artisan queue:work \
+            --queue=default \
+            --tries=3 \
+            --backoff=10 \
+            --timeout=60 \
+            --max-time=3600 \
+            --max-jobs=1000 \
+            --verbose \
+            --no-interaction
+
+        echo "Queue worker exited at $(date). Restarting in 5 seconds..."
+        sleep 5
+    done
 elif [ "$role" = "reverb" ]; then
     php /var/www/artisan reverb:start --host="${REVERB_SERVER_HOST:-0.0.0.0}" --port="${REVERB_SERVER_PORT:-8090}"
 elif [ "$role" = "app" ]; then
