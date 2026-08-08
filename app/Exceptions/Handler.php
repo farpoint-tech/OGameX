@@ -138,8 +138,11 @@ class Handler extends ExceptionHandler
             // key=value / key: value style secrets (password, secret, api_key, token, ...)
             '/\b(passwords?|passwd|pwd|secret|api[_-]?key|apikey|access[_-]?token|auth[_-]?token|refresh[_-]?token|token|client[_-]?secret|private[_-]?key|db[_-]?password)\b\s*[:=]\s*[\'"]?[^\s\'"&,;)}\]]+/i' => '$1=[REDACTED]',
 
-            // Well-known API key / token prefixes (Stripe, OpenAI, GitHub, Slack, AWS, ...)
-            '/\b(sk|pk|rk|xox[baprs]|ghp|gho|ghu|ghs|ghr|AKIA|ASIA)[_-][A-Za-z0-9_\-]{10,}/' => '[REDACTED_KEY]',
+            // Well-known API key / token prefixes (Stripe, OpenAI, GitHub, Slack, ...)
+            '/\b(sk|pk|rk|xox[baprs]|ghp|gho|ghu|ghs|ghr)[_-][A-Za-z0-9_\-]{10,}/' => '[REDACTED_KEY]',
+
+            // AWS access key IDs: AKIA/ASIA followed directly by 16 uppercase alphanumerics.
+            '/\b(?:AKIA|ASIA)[0-9A-Z]{16}\b/' => '[REDACTED_KEY]',
 
             // Bearer tokens in Authorization headers.
             '/\bBearer\s+[A-Za-z0-9\-._~+\/]+=*/i' => 'Bearer [REDACTED]',

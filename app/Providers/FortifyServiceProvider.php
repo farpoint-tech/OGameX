@@ -38,19 +38,20 @@ class FortifyServiceProvider extends ServiceProvider
         Fortify::resetUserPasswordsUsing(ResetUserPassword::class);
 
         RateLimiter::for('login', function (Request $request) {
-            // Rate limit by both email+IP AND email alone. Limiting by email
-            // (even for non-existent emails) blocks distributed brute force /
-            // credential stuffing where the attacker rotates IP addresses.
+            // Key the limit by email+IP. Deliberately NOT keyed by email alone:
+            // an email-only bucket would let an unauthenticated attacker lock an
+            // arbitrary account out of login entirely by exhausting the victim's
+            // bucket from any IP (targeted denial of service).
             $email = Str::transliterate(Str::lower((string) $request->input(Fortify::username())));
 
-            return [
-                Limit::perMinute(5)->by($email . '|' . $request->ip()),
-                Limit::perMinute(5)->by($email),
-            ];
+            return Limit::perMinute(5)->by($email . '|' . $request->ip());
         });
 
         RateLimiter::for('two-factor', function (Request $request) {
-            return Limit::perMinute(5)->by($request->session()->get('login.id'));
+            // Fall back to the client IP when the session has no login.id yet:
+            // with a null key all such requests would share one global bucket,
+            // letting a single client 429 every user on the 2FA challenge.
+            return Limit::perMinute(5)->by($request->session()->get('login.id') ?? $request->ip());
         });
 
         Fortify::loginView(function () {

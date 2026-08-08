@@ -14,6 +14,13 @@ services:
     # instead of provisioning the database with known default credentials.
     # Note: these values only take effect on the first initialization of the
     # database volume; changing them later requires updating the DB manually.
+    # IMPORTANT for existing deployments:
+    #  - DB_USERNAME must NOT be "root": the MariaDB image refuses to start
+    #    with MYSQL_USER=root. Use a dedicated app user (e.g. ogamex_app).
+    #  - On an already-initialized volume the app user is NOT created
+    #    automatically. Create it manually before switching DB_USERNAME:
+    #      CREATE USER 'ogamex_app'@'%' IDENTIFIED BY '<DB_PASSWORD>';
+    #      GRANT ALL PRIVILEGES ON `<DB_DATABASE>`.* TO 'ogamex_app'@'%';
     environment:
       MYSQL_DATABASE: ${DB_DATABASE:-laravel}
       MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?Set DB_ROOT_PASSWORD in .env (see .env.example-prod)}

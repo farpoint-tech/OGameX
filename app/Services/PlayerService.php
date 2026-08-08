@@ -684,6 +684,11 @@ class PlayerService
      */
     public function updateFleetMissions(): void
     {
+        // NOTE: no deadlock retries here — updateMission() processes battles,
+        // resource transfers etc. through this player's long-lived in-memory
+        // PlanetService objects. A DB rollback does not reset those objects, so
+        // re-running the closure would re-apply mission effects on top of the
+        // already-mutated in-memory state.
         DB::transaction(function () {
             // Attempt to acquire a lock on the row for this planet. This is to prevent
             // race conditions when multiple requests are updating the fleet missions for the
@@ -728,7 +733,7 @@ class PlayerService
             } else {
                 throw new Exception('Could not acquire update fleet mission planet lock.');
             }
-        }, 3);
+        });
     }
 
     /**

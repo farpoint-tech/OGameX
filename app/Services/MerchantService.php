@@ -376,6 +376,9 @@ class MerchantService
 
         // Execute the trade inside a DB transaction to guarantee atomicity:
         // if crediting any receive resource fails, the give deduction is rolled back.
+        // NOTE: no deadlock retries here — deductResources/addResources sync the
+        // captured in-memory planet model, which a rollback does not undo; a retry
+        // would apply the trade twice to the in-memory state and persist it.
         try {
             $receivedAmounts = DB::transaction(function () use (
                 $planet, $giveResource, $totalGiveCost, $tradePlan
@@ -401,7 +404,7 @@ class MerchantService
                 }
 
                 return $receivedAmounts;
-            }, 3);
+            });
 
             return [
                 'success' => true,

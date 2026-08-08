@@ -8,14 +8,11 @@ class GameObjectStorage
 {
     /**
      * Storage formulas as closures with signature: fn (int $object_level): int|float.
-     *
-     * String formulas (evaluated via eval()) are deprecated and only supported
-     * for backward compatibility. Define new formulas as closures.
      */
-    public Closure|string $metal;
-    public Closure|string $crystal;
-    public Closure|string $deuterium;
-    public Closure|string $energy;
+    public Closure $metal;
+    public Closure $crystal;
+    public Closure $deuterium;
+    public Closure $energy;
 
     public function __construct()
     {
@@ -31,7 +28,7 @@ class GameObjectStorage
      */
     public function calculateMetal(int $object_level): float
     {
-        return $this->evaluate($this->metal, $object_level);
+        return (float)($this->metal)($object_level);
     }
 
     /**
@@ -39,7 +36,7 @@ class GameObjectStorage
      */
     public function calculateCrystal(int $object_level): float
     {
-        return $this->evaluate($this->crystal, $object_level);
+        return (float)($this->crystal)($object_level);
     }
 
     /**
@@ -47,7 +44,7 @@ class GameObjectStorage
      */
     public function calculateDeuterium(int $object_level): float
     {
-        return $this->evaluate($this->deuterium, $object_level);
+        return (float)($this->deuterium)($object_level);
     }
 
     /**
@@ -55,33 +52,6 @@ class GameObjectStorage
      */
     public function calculateEnergy(int $object_level): float
     {
-        return $this->evaluate($this->energy, $object_level);
-    }
-
-    /**
-     * Evaluates a storage formula for the given object level.
-     *
-     * Closures are invoked directly. String formulas fall back to eval() for
-     * backward compatibility and trigger a deprecation warning.
-     *
-     * @param Closure|string $formula
-     * @param int $object_level
-     * @return float
-     */
-    private function evaluate(Closure|string $formula, int $object_level): float
-    {
-        if ($formula instanceof Closure) {
-            return (float)$formula($object_level);
-        }
-
-        // Legacy string formula evaluated via eval().
-        // @deprecated Define storage formulas as closures instead, e.g.:
-        // fn (int $object_level) => 5000 * floor(2.5 * exp(20 * $object_level / 33))
-        trigger_error(
-            'Defining storage formulas as eval() strings is deprecated and will be removed. Use a Closure instead: fn (int $object_level) => ...',
-            E_USER_DEPRECATED
-        );
-
-        return (float)eval($formula);
+        return (float)($this->energy)($object_level);
     }
 }

@@ -67,11 +67,12 @@ class AppServiceProvider extends ServiceProvider
 
             // Determine throttle key: per user id (fallback to IP when
             // unauthenticated) or strictly per IP, depending on config.
-            $key = config('throttle.game_by', 'user') === 'ip'
+            // Defaults live in config/throttle.php only, to avoid drift.
+            $key = config('throttle.game_by') === 'ip'
                 ? $request->ip()
                 : ($user?->id ?: $request->ip());
 
-            return Limit::perMinute((int)config('throttle.game_per_minute', 120))->by($key);
+            return Limit::perMinute((int)config('throttle.game_per_minute'))->by($key);
         });
     }
 

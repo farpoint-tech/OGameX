@@ -1848,6 +1848,10 @@ class PlanetService
      */
     public function deductResourcesAndUnitsAtomic(Resources $resources, UnitCollection $units): bool
     {
+        // NOTE: no deadlock retries here — deductResourcesAtomic() syncs the
+        // in-memory planet model after its UPDATE succeeds, and a rollback does
+        // not undo that sync. A retry would deduct the resources from the
+        // in-memory model a second time.
         return DB::transaction(function () use ($resources, $units) {
             // First deduct resources atomically
             if (!$this->deductResourcesAtomic($resources)) {
@@ -1861,7 +1865,7 @@ class PlanetService
             }
 
             return true;
-        }, 3);
+        });
     }
 
     /**

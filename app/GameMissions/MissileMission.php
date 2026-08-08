@@ -195,7 +195,11 @@ class MissileMission extends GameMission
                 $mission
             );
 
-            // TRANSACTION SAFETY: Wrap ABM removal and defense destruction in atomic transaction
+            // TRANSACTION SAFETY: Wrap ABM removal and defense destruction in atomic transaction.
+            // NOTE: no deadlock retries here — the closure mutates captured in-memory
+            // planet state (removeUnit/removeUnits sync the model), which a DB rollback
+            // does not undo. A retry would re-apply the decrements and persist doubled
+            // unit losses via save().
             DB::transaction(function () use (
                 $interceptedMissiles,
                 $parentPlanet,
@@ -230,7 +234,7 @@ class MissileMission extends GameMission
                 }
 
                 $defenderTarget->save();
-            }, 3);
+            });
 
             // Get defense counts AFTER attack for reporting
             foreach ($defensesBeforeAttack as $machineName => &$defenseData) {
