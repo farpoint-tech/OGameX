@@ -2406,9 +2406,7 @@ class PlanetService
         }
         $object_level = (int)$object_level;
 
-        // Storage formulas are closures defined on the game object (legacy
-        // string formulas are still evaluated via a deprecated eval() fallback
-        // inside GameObjectStorage).
+        // Storage formulas are closures defined on the game object.
         $storage_metal = $building->storage->calculateMetal($object_level);
         $storage_crystal = $building->storage->calculateCrystal($object_level);
         $storage_deuterium = $building->storage->calculateDeuterium($object_level);
