@@ -16,7 +16,7 @@ return [
     |
     */
 
-    'default' => env('DB_CONNECTION', 'sqlite'),
+    'default' => env('DB_CONNECTION', 'mysql'),
 
     /*
     |--------------------------------------------------------------------------
@@ -31,6 +31,9 @@ return [
 
     'connections' => [
 
+        // NOTE: SQLite is intended for local development and testing ONLY.
+        // It has poor write concurrency which makes it unsuitable for a
+        // multiplayer game server. Use MySQL/MariaDB in production.
         'sqlite' => [
             'driver' => 'sqlite',
             'url' => env('DB_URL'),
@@ -52,11 +55,21 @@ return [
             'collation' => env('DB_COLLATION', 'utf8mb4_unicode_ci'),
             'prefix' => '',
             'prefix_indexes' => true,
+            // 'strict' => true makes Laravel's connector issue its own
+            // SET SESSION sql_mode=... after connecting, which includes
+            // STRICT_TRANS_TABLES. Do NOT add a MYSQL_ATTR_INIT_COMMAND for
+            // sql_mode here: it costs an extra round trip per connection and
+            // is overwritten moments later by that statement anyway.
             'strict' => true,
             'engine' => null,
+            // Connection pool / persistent connection configuration.
+            // Persistent connections reduce connection overhead under load.
             'options' => extension_loaded('pdo_mysql') ? array_filter([
                 (PHP_VERSION_ID >= 80500 ? Pdo\Mysql::ATTR_SSL_CA : PDO::MYSQL_ATTR_SSL_CA) => env('MYSQL_ATTR_SSL_CA'),
-            ]) : [],
+                PDO::ATTR_TIMEOUT => 30, // 30 second connection timeout
+                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+                PDO::ATTR_PERSISTENT => env('DB_PERSISTENT', false),
+            ], static fn ($value) => $value !== null) : [],
         ],
 
         'mariadb' => [

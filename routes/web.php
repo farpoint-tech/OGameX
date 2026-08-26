@@ -63,8 +63,12 @@ Route::get('/ajax/main/privacy-policy', [RulesController::class, 'ajaxPrivacyPol
 Route::get('/ajax/main/terms', [RulesController::class, 'ajaxTerms'])->name('terms.ajax');
 Route::get('/ajax/main/contact', [RulesController::class, 'ajaxContact'])->name('contact.ajax');
 
-// Group: all logged in pages:
-Route::middleware(['auth', 'banned', 'globalgame', 'locale', 'firstlogin'])->group(function () {
+// Group: all logged in pages.
+// The "throttle:game" middleware rate limits all game endpoints (galaxy scans,
+// fleet dispatch, espionage/phalanx, etc.) to protect against bots and DoS.
+// Limits are configurable via THROTTLE_GAME_PER_MINUTE / THROTTLE_GAME_BY in .env.
+// Admin users are exempt (see AppServiceProvider::configureRateLimiting()).
+Route::middleware(['auth', 'banned', 'globalgame', 'locale', 'firstlogin', 'throttle:game'])->group(function () {
     // Overview
     Route::get('/overview', [OverviewController::class, 'index'])->name('overview.index');
 
@@ -255,7 +259,8 @@ Route::middleware(['auth', 'banned', 'globalgame', 'locale', 'firstlogin'])->gro
     Route::get('/overlay/server-settings', [ServerSettingsController::class, 'overlay'])->name('serversettings.overlay');
 });
 
-// Group: all logged in pages:
+// Group: admin/developer pages. Intentionally NOT rate limited ("throttle:game"
+// is omitted) so admin and developer tooling is never blocked by request limits.
 Route::middleware(['auth', 'globalgame', 'locale', 'admin'])->group(function () {
     // Server settings
     Route::get('/admin/server-settings', [AdminServerSettingsController::class, 'index'])->name('admin.serversettings.index');

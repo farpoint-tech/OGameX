@@ -60,7 +60,7 @@ class DarkMatterService
                 $description,
                 $user->dark_matter
             );
-        });
+        }, 3);
     }
 
     /**
@@ -100,7 +100,7 @@ class DarkMatterService
                 $description,
                 $user->dark_matter
             );
-        });
+        }, 3);
     }
 
     /**
@@ -181,7 +181,7 @@ class DarkMatterService
                     $user->dark_matter
                 );
             }
-        });
+        }, 3);
     }
 
     /**

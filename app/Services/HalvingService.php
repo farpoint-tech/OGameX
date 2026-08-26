@@ -210,7 +210,7 @@ class HalvingService
                 'new_balance' => $lockedUser->dark_matter,
                 'remaining_time' => $timeValues['remaining_time'],
             ];
-        });
+        }, 3);
 
         return $result;
     }
@@ -294,7 +294,7 @@ class HalvingService
                 'new_balance' => $lockedUser->dark_matter,
                 'remaining_time' => $timeValues['remaining_time'],
             ];
-        });
+        }, 3);
 
         return $result;
     }
@@ -428,7 +428,7 @@ class HalvingService
                 'new_balance' => $lockedUser->dark_matter,
                 'remaining_time' => $newRemainingTime,
             ];
-        });
+        }, 3);
 
         return $result;
     }
@@ -521,7 +521,7 @@ class HalvingService
                 'cost' => $cost,
                 'new_balance' => $lockedUser->dark_matter,
             ];
-        });
+        }, 3);
 
         return $result;
     }
@@ -619,12 +619,14 @@ class HalvingService
 
         $timeReduction = $oldTimeEnd - $newTimeEnd;
 
+        // Using decrementEach() instead of DB::raw() string interpolation lets the framework
+        // validate the amounts and quote the column identifiers safely.
         UnitQueue::where('planet_id', $planetId)
             ->where('processed', 0)
             ->where('time_start', '>=', $oldTimeEnd)
-            ->update([
-                'time_start' => DB::raw("time_start - {$timeReduction}"),
-                'time_end'   => DB::raw("time_end - {$timeReduction}"),
-            ]);
+            ->decrementEach([
+                'time_start' => $timeReduction,
+                'time_end'   => $timeReduction,
+            ], ['updated_at' => Date::now()]);
     }
 }

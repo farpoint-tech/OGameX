@@ -5,6 +5,7 @@ namespace OGame\Providers;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
@@ -37,13 +38,30 @@ class FortifyServiceProvider extends ServiceProvider
         Fortify::resetUserPasswordsUsing(ResetUserPassword::class);
 
         RateLimiter::for('login', function (Request $request) {
-            $throttleKey = Str::transliterate(Str::lower($request->input(Fortify::username())) . '|' . $request->ip());
+            $email = Str::transliterate(Str::lower((string) $request->input(Fortify::username())));
 
-            return Limit::perMinute(20)->by($throttleKey);
+            return [
+                // Per source IP. This bound is what limits how much bcrypt work
+                // a single source can force: authenticateUsing() below always
+                // runs a hash comparison (constant-time user enumeration
+                // defence), so without this an attacker could rotate the
+                // submitted e-mail on every request, get a fresh email+IP
+                // bucket each time and burn unbounded CPU.
+                Limit::perMinute(30)->by('login-ip|' . $request->ip()),
+
+                // Per account from one source: targeted brute force.
+                // Deliberately NOT keyed by e-mail alone: an email-only bucket
+                // would let an attacker lock an arbitrary account out of login
+                // entirely from any IP (targeted denial of service).
+                Limit::perMinute(5)->by($email . '|' . $request->ip()),
+            ];
         });
 
         RateLimiter::for('two-factor', function (Request $request) {
-            return Limit::perMinute(20)->by($request->session()->get('login.id'));
+            // Fall back to the client IP when the session has no login.id yet:
+            // with a null key all such requests would share one global bucket,
+            // letting a single client 429 every user on the 2FA challenge.
+            return Limit::perMinute(5)->by($request->session()->get('login.id') ?? $request->ip());
         });
 
         Fortify::loginView(function () {
@@ -53,7 +71,25 @@ class FortifyServiceProvider extends ServiceProvider
         Fortify::authenticateUsing(function (Request $request) {
             $user = User::where('email', $request->email)->first();
 
-            if (!$user || !Hash::check($request->password, $user->password)) {
+            // Constant-time authentication: ALWAYS run a bcrypt hash comparison,
+            // even when the user does not exist, so response timing does not
+            // reveal whether an email is registered (user enumeration / timing
+            // attack protection). When there is no user we hash-check against a
+            // fixed dummy bcrypt hash which can never match.
+            $dummyHash = '$2y$12$usdvIvVELErVXqBoADgxSuWNb3JXpVVVJGw3EKW.iC.8UvUtGyxJK';
+            $passwordCorrect = Hash::check(
+                $request->password,
+                $user?->password ?? $dummyHash
+            );
+
+            // Log every attempt (success + failure) to the security channel.
+            Log::channel('security')->info('Login attempt', [
+                'email' => $request->input(Fortify::username()),
+                'ip' => $request->ip(),
+                'success' => $user && $passwordCorrect,
+            ]);
+
+            if (!$user || !$passwordCorrect) {
                 return;
             }
 

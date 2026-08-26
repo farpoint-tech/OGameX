@@ -9,9 +9,23 @@ services:
      - ogame-dbdata:/var/lib/mysql
      - ./mysql/my.cnf:/etc/mysql/my.cnf
     # MariaDB port is not exposed to the host machine in production.
+    # Credentials are read from the .env file (see .env.example-prod).
+    # DB_ROOT_PASSWORD and DB_PASSWORD are required: compose fails fast
+    # instead of provisioning the database with known default credentials.
+    # Note: these values only take effect on the first initialization of the
+    # database volume; changing them later requires updating the DB manually.
+    # IMPORTANT for existing deployments:
+    #  - DB_USERNAME must NOT be "root": the MariaDB image refuses to start
+    #    with MYSQL_USER=root. Use a dedicated app user (e.g. ogamex_app).
+    #  - On an already-initialized volume the app user is NOT created
+    #    automatically. Create it manually before switching DB_USERNAME:
+    #      CREATE USER 'ogamex_app'@'%' IDENTIFIED BY '<DB_PASSWORD>';
+    #      GRANT ALL PRIVILEGES ON `<DB_DATABASE>`.* TO 'ogamex_app'@'%';
     environment:
-      MYSQL_DATABASE: laravel
-      MYSQL_ROOT_PASSWORD: toor
+      MYSQL_DATABASE: ${DB_DATABASE:-laravel}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?Set DB_ROOT_PASSWORD in .env (see .env.example-prod)}
+      MYSQL_USER: ${DB_USERNAME:-ogamex_app}
+      MYSQL_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env (see .env.example-prod)}
       SERVICE_TAGS: dev
       SERVICE_NAME: mysql
     networks:
@@ -109,6 +123,15 @@ services:
       - ./php/local.ini:/usr/local/etc/php/conf.d/local.ini
     environment:
       CONTAINER_ROLE: reverb
+      # Required, same as the database credentials: anyone who knows the app
+      # key and secret can sign private-channel auth themselves and subscribe
+      # to other players' alliance and direct chats without ever touching the
+      # authorization callbacks in routes/channels.php. The placeholders in
+      # .env.example-prod are functional values, so an operator who only fixed
+      # the database settings would otherwise ship secrets published in the
+      # repository. Generate with: openssl rand -hex 16 / openssl rand -hex 32
+      REVERB_APP_KEY: ${REVERB_APP_KEY:?Set REVERB_APP_KEY in .env (openssl rand -hex 16)}
+      REVERB_APP_SECRET: ${REVERB_APP_SECRET:?Set REVERB_APP_SECRET in .env (openssl rand -hex 32)}
     ports:
       - "${REVERB_SERVER_PORT:-8090}:${REVERB_SERVER_PORT:-8090}"
     networks:

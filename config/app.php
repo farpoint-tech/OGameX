@@ -129,4 +129,5 @@ return [
      */
     'version' => '0.14.0',
     'discord_alert_webhook' => env('DISCORD_ALERT_WEBHOOK', false),
+    'send_discord_in_production' => env('SEND_DISCORD_IN_PRODUCTION', false),
 ];

@@ -283,7 +283,11 @@ class MoonDestructionMission extends GameMission
         $moonName = $targetMoon->getPlanetName();
         $moonCoords = $targetMoon->getPlanetCoordinates()->asString();
 
-        // Destroy the moon within a transaction
+        // Destroy the moon within a transaction.
+        // NOTE: no deadlock retries here — abandonPlanet() calls delete() on the
+        // captured in-memory model, which sets exists=false. A rollback does not
+        // reset that flag, so a retry would silently skip the delete and commit
+        // an inconsistent state (fleets redirected but moon still present).
         DB::transaction(function () use ($targetMoon) {
             // Redirect all fleets targeting this moon to the parent planet
             $this->redirectFleetsFromMoon($targetMoon);

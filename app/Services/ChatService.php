@@ -3,6 +3,7 @@
 namespace OGame\Services;
 
 use Carbon\Carbon;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\Collection;
 use OGame\Events\ChatMessageSent;
 use OGame\Models\ChatMessage;
@@ -81,10 +82,22 @@ class ChatService
     /**
      * Get alliance chat message history.
      *
+     * Only members of the alliance are allowed to read its chat history. The
+     * acting user defaults to the currently authenticated user; callers acting
+     * on behalf of another user must pass $userId explicitly.
+     *
      * @return Collection<int, ChatMessage>
+     * @throws AuthorizationException If the acting user is not a member of the alliance.
      */
-    public function getAllianceMessages(int $allianceId, int $limit = 50, int|null $beforeId = null): Collection
+    public function getAllianceMessages(int $allianceId, int $limit = 50, int|null $beforeId = null, int|null $userId = null): Collection
     {
+        // Authorization (defense in depth): verify alliance membership regardless of caller.
+        $userId = $userId ?? auth()->id();
+        $user = $userId ? User::find($userId) : null;
+        if ($user === null || $user->alliance_id !== $allianceId) {
+            throw new AuthorizationException('Not a member of this alliance.');
+        }
+
         $query = ChatMessage::where('alliance_id', $allianceId)
             ->with(['sender', 'replyTo.sender']);
 

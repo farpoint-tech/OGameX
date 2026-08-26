@@ -53,6 +53,7 @@ Disclaimer: this project is purely fan-based and does not contain any commercial
 - [7. Installation](#installation)
   - [a) Development: Install OGameX using Docker](#development)
   - [b) Production: Install OGameX using Docker](#production)
+  - [c) Production checklist](#production-checklist)
 - [8. Upgrade](#upgrade)
 - [9. Support](#support)
 - [10. Sponsorship](#sponsorship)
@@ -153,7 +154,7 @@ Create a new account to start using OGameX. The first account created will be au
 For production there is a separate docker-compose file called `docker-compose.prod.yml`. This configuration contains
 several performance optimizations and security settings that are not present in the development configuration.
 
-***Caution:*** the production configuration is not yet fully optimized and should be used with caution. As an example, the database root user uses a default password which should be changed to something unique. You should review all settings before deploying this project to a publicly accessible server.
+***Caution:*** never deploy the development configuration (`.env.example`) to a publicly accessible server. It contains well-known default credentials (`root`/`toor`) and publicly known Reverb WebSocket secrets. Always start from `.env.example-prod` (or the stricter `.env.production.example`) and replace all placeholder values. Review all settings before deploying this project to a publicly accessible server.
 
 The instructions below are for Linux. OGameX should also work under Docker for Windows but the steps might be a little bit different.
 
@@ -163,10 +164,15 @@ The instructions below are for Linux. OGameX should also work under Docker for W
   $ cd OGameX
   ```
 
-2. Copy `.env.example-prod` to `.env`.
+2. Copy `.env.example-prod` to `.env` and fill in all required values.
   ```
   $ cp .env.example-prod .env
   ```
+  Alternatively, use `.env.production.example` which leaves all secrets empty so nothing can start with insecure defaults:
+  ```
+  $ cp .env.production.example .env
+  ```
+  Then edit `.env` and replace every `CHANGE_ME_*` / `GENERATE_*` / empty value. See the [production checklist](#production-checklist) below. Docker Compose will refuse to start if `DB_PASSWORD` or `DB_ROOT_PASSWORD` are not set.
 
 3. Launch the project using Docker Compose:
   ```
@@ -182,6 +188,21 @@ After the docker containers have started, visit https://localhost to access OGam
 Create a new account to start using OGameX. The first account created will be automatically assigned the admin role.
 
 > Note: The production version runs in forced-HTTPS (redirect) mode by default using a self-signed SSL certificate. If you want to access the application via HTTP, open `.env` and change `APP_ENV` from `production` to `local`.
+
+### <a name="production-checklist"></a> Production checklist
+
+Before exposing an OGameX server to the internet, verify all of the following:
+
+- **`APP_ENV=production` and `APP_DEBUG=false`** — debug mode leaks configuration, secrets and stack traces to visitors.
+- **`APP_KEY` is set** — generated automatically by the Docker entrypoint on first boot, or run `php artisan key:generate` manually.
+- **Database credentials are unique** — never use the development defaults (`root`/`toor`). The application should connect as a dedicated, least-privilege user (e.g. `ogamex_app`), not as root. Set both `DB_PASSWORD` (application user) and `DB_ROOT_PASSWORD` (MariaDB container provisioning) to strong, unique values, e.g. generated with `openssl rand -base64 24`. The bundled `docker-compose.prod.yml` refuses to start when these are missing. Note that they only take effect on the first initialization of the database volume.
+- **SQLite is not used** — SQLite is supported for local development and testing only; its poor write concurrency makes it unsuitable for a multiplayer server. Use `DB_CONNECTION=mysql` (default).
+- **`SESSION_SECURE_COOKIE=true`** — ensures session cookies are only sent over HTTPS. Requires the site to be served via HTTPS (the production compose file forces HTTPS by default).
+- **Reverb secrets are regenerated** — the development values (`ogamex-key`/`ogamex-secret`) are publicly known. Generate unique values: `REVERB_APP_KEY` with `openssl rand -hex 16` and `REVERB_APP_SECRET` with `openssl rand -hex 32`.
+- **Valid TLS certificate** — replace the bundled self-signed certificate in `./nginx/ssl/` with a real one (e.g. Let's Encrypt).
+- **PhpMyAdmin access is restricted** — allow only your own IP addresses via `./docker/phpmyadmin/.htaccess`, or remove the `ogamex-phpmyadmin` service from `docker-compose.prod.yml` entirely.
+- **Mail is configured** — password resets and notifications require a working SMTP configuration.
+- **Debug tooling stays off** — `DEBUGBAR_ENABLED=false`.
 
 ## <a name="upgrade"></a> 🖥️ 8. Upgrade and misc instructions
 

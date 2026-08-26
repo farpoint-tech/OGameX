@@ -1141,7 +1141,7 @@ class PlanetService
             } else {
                 throw new Exception('Could not acquire planet update lock.');
             }
-        });
+        }, 3);
     }
 
     /**
@@ -1678,12 +1678,12 @@ class PlanetService
         $object = ObjectService::getUnitObjectByMachineName($machine_name);
 
         if ($save_planet) {
-            // Use atomic update to prevent race conditions
+            // Use atomic decrement to prevent race conditions. Using decrement() instead of
+            // DB::raw() string interpolation lets the framework validate the amount and quote
+            // the column identifier safely.
             $affected = Planet::where('id', $this->getPlanetId())
                 ->where($object->machine_name, '>=', $amount)
-                ->update([
-                    $object->machine_name => DB::raw("{$object->machine_name} - {$amount}")
-                ]);
+                ->decrement($object->machine_name, $amount, ['updated_at' => Date::now()]);
 
             if ($affected === 0) {
                 throw new RuntimeException('Planet does not have enough units.');
@@ -1751,25 +1751,27 @@ class PlanetService
             $query->where('deuterium', '>=', $deuteriumCost);
         }
 
-        // Build the update array
-        $updates = [];
+        // Build the decrement array. Using decrementEach() instead of DB::raw() string
+        // interpolation lets the framework validate the amounts and quote the column
+        // identifiers safely.
+        $decrements = [];
         if ($metalCost > 0) {
-            $updates['metal'] = DB::raw("metal - {$metalCost}");
+            $decrements['metal'] = $metalCost;
         }
         if ($crystalCost > 0) {
-            $updates['crystal'] = DB::raw("crystal - {$crystalCost}");
+            $decrements['crystal'] = $crystalCost;
         }
         if ($deuteriumCost > 0) {
-            $updates['deuterium'] = DB::raw("deuterium - {$deuteriumCost}");
+            $decrements['deuterium'] = $deuteriumCost;
         }
 
         // If no resources to deduct, return success
-        if (empty($updates)) {
+        if (empty($decrements)) {
             return true;
         }
 
         // Execute atomic update - returns number of affected rows
-        $affected = $query->update($updates);
+        $affected = $query->decrementEach($decrements, ['updated_at' => Date::now()]);
 
         if ($affected > 0) {
             // Sync in-memory model with the deducted values
@@ -1801,9 +1803,11 @@ class PlanetService
             return true;
         }
 
-        // Build the update query with WHERE conditions for all units
+        // Build the update query with WHERE conditions for all units. Using decrementEach()
+        // instead of DB::raw() string interpolation lets the framework validate the amounts
+        // and quote the column identifiers safely.
         $query = Planet::where('id', $this->getPlanetId());
-        $updates = [];
+        $decrements = [];
 
         foreach ($units->units as $unit) {
             $machineName = $unit->unitObject->machine_name;
@@ -1811,16 +1815,16 @@ class PlanetService
 
             if ($amount > 0) {
                 $query->where($machineName, '>=', $amount);
-                $updates[$machineName] = DB::raw("{$machineName} - {$amount}");
+                $decrements[$machineName] = $amount;
             }
         }
 
-        if (empty($updates)) {
+        if (empty($decrements)) {
             return true;
         }
 
         // Execute atomic update
-        $affected = $query->update($updates);
+        $affected = $query->decrementEach($decrements, ['updated_at' => Date::now()]);
 
         if ($affected > 0) {
             // Sync in-memory model
@@ -1844,6 +1848,10 @@ class PlanetService
      */
     public function deductResourcesAndUnitsAtomic(Resources $resources, UnitCollection $units): bool
     {
+        // NOTE: no deadlock retries here — deductResourcesAtomic() syncs the
+        // in-memory planet model after its UPDATE succeeds, and a rollback does
+        // not undo that sync. A retry would deduct the resources from the
+        // in-memory model a second time.
         return DB::transaction(function () use ($resources, $units) {
             // First deduct resources atomically
             if (!$this->deductResourcesAtomic($resources)) {
@@ -2393,14 +2401,15 @@ class PlanetService
     {
         $building = ObjectService::getBuildingObjectByMachineName($machine_name);
 
-        // NOTE: $object_level is used by eval() function in the formula.
         if (!$object_level) {
             $object_level = $this->getObjectLevel($machine_name);
         }
+        $object_level = (int)$object_level;
 
-        $storage_metal = eval($building->storage->metal);
-        $storage_crystal = eval($building->storage->crystal);
-        $storage_deuterium = eval($building->storage->deuterium);
+        // Storage formulas are closures defined on the game object.
+        $storage_metal = $building->storage->calculateMetal($object_level);
+        $storage_crystal = $building->storage->calculateCrystal($object_level);
+        $storage_deuterium = $building->storage->calculateDeuterium($object_level);
 
         return new Resources($storage_metal, $storage_crystal, $storage_deuterium, 0);
     }

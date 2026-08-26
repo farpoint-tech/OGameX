@@ -701,7 +701,7 @@ class WreckFieldService
                 'collected_ships' => $collectionResult['collected_ships'],
                 'remaining_ships' => $collectionResult['remaining_ships'],
             ];
-        });
+        }, 3);
     }
 
     /**
@@ -743,7 +743,7 @@ class WreckFieldService
                 'planet_id' => $planetId,
                 'owner_player_id' => $ownerPlayerId,
             ];
-        });
+        }, 3);
     }
 
     /**

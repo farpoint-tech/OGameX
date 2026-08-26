@@ -357,8 +357,8 @@ class ServerAdministrationController extends OGameController
                 DB::raw('COUNT(*) as mission_count'),
                 DB::raw('COUNT(DISTINCT FLOOR(fleet_missions.time_departure % 86400 / 3600)) as active_hours'),
                 DB::raw('COALESCE(users_tech.computer_technology, 0) + 1 as fleet_slots'),
-                DB::raw("COUNT(*) / ({$lookbackDays} * (COALESCE(users_tech.computer_technology, 0) + 1)) as missions_per_slot_per_day"),
             ])
+            ->selectRaw('COUNT(*) / (? * (COALESCE(users_tech.computer_technology, 0) + 1)) as missions_per_slot_per_day', [$lookbackDays])
             ->orderByDesc('active_hours')
             ->get();
     }
@@ -593,7 +593,7 @@ class ServerAdministrationController extends OGameController
                 }
 
                 $message = "Mission #{$mission->id} processed successfully.";
-            });
+            }, 3);
 
             return redirect()->route('admin.server-administration.index')
                 ->with('status', $message);
@@ -646,7 +646,7 @@ class ServerAdministrationController extends OGameController
                 $mission->save();
 
                 $message = "Mission #{$mission->id} recovered to {$homeworld->getPlanetCoordinates()->asString()}.";
-            });
+            }, 3);
 
             return redirect()->route('admin.server-administration.index')
                 ->with('status', $message);

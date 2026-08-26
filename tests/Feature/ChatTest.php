@@ -433,6 +433,53 @@ class ChatTest extends AccountTestCase
     }
 
     /**
+     * Test that non-alliance members cannot read alliance chat history via load-more pagination (IDOR).
+     */
+    public function testNonMemberCannotLoadMoreAllianceMessages(): void
+    {
+        // Create an alliance via another user so current user is NOT part of it
+        $otherUser = User::factory()->create();
+        $allianceService = resolve(AllianceService::class);
+        $alliance = $allianceService->createAlliance($otherUser->id, 'LM' . substr(md5(uniqid()), 0, 5), 'LoadMoreAlliance');
+
+        $chatService = resolve(ChatService::class);
+        $chatService->sendAllianceMessage($otherUser->id, $alliance->id, 'Secret alliance message');
+
+        $response = $this->post('/chat/more', [
+            'associationId' => $alliance->id,
+            'beforeId' => 999999,
+        ]);
+
+        $response->assertStatus(200);
+        $response->assertJson(['status' => 'NOT_AUTHORIZED']);
+        $response->assertDontSee('Secret alliance message');
+    }
+
+    /**
+     * Test that alliance members can load more alliance messages.
+     */
+    public function testMemberCanLoadMoreAllianceMessages(): void
+    {
+        $alliance = $this->createAllianceForCurrentUser();
+
+        $chatService = resolve(ChatService::class);
+        $chatService->sendAllianceMessage($this->currentUserId, $alliance->id, 'Older alliance message');
+
+        // Reload application so the user's alliance_id is reflected in auth
+        $this->reloadApplication();
+
+        $response = $this->post('/chat/more', [
+            'associationId' => $alliance->id,
+            'beforeId' => 999999,
+        ]);
+
+        $response->assertStatus(200);
+        $data = $response->json();
+        $this->assertArrayHasKey('chatItems', $data);
+        $this->assertCount(1, $data['chatItemsByDateAsc']);
+    }
+
+    /**
      * Test getting alliance chat history via the controller.
      */
     public function testGetAllianceHistoryViaController(): void

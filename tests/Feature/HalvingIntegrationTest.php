@@ -386,4 +386,57 @@ class HalvingIntegrationTest extends AccountTestCase
         $user->refresh();
         $this->assertEquals($initialBalance, $user->dark_matter, 'Dark Matter should not be deducted');
     }
+
+    /**
+     * Test that halving a unit queue item shifts future queued items forward
+     * by exactly the same time reduction, with correct values persisted in
+     * the database.
+     */
+    public function testUnitHalvingShiftsFutureQueueItems(): void
+    {
+        $user = User::find($this->currentUserId);
+        $user->dark_matter = 100000;
+        $user->save();
+
+        $this->planetSetObjectLevel('robot_factory', 2);
+        $this->planetSetObjectLevel('shipyard', 2);
+        $this->playerSetResearchLevel('combustion_drive', 1);
+        $this->planetAddResources(new \OGame\Models\Resources(100000, 100000, 100000, 0));
+
+        // Queue two build requests so a future queue item exists behind the active one.
+        $this->addShipyardBuildRequest('light_fighter', 10);
+        $this->addShipyardBuildRequest('light_fighter', 10);
+
+        $queueItems = UnitQueue::where('planet_id', $this->planetService->getPlanetId())
+            ->where('processed', 0)
+            ->orderBy('time_start')
+            ->get();
+
+        $this->assertCount(2, $queueItems, 'Two queue items should exist');
+
+        $firstItem = $queueItems[0];
+        $secondItem = $queueItems[1];
+
+        $firstTimeEndBefore = (int)$firstItem->time_end;
+        $secondTimeStartBefore = (int)$secondItem->time_start;
+        $secondTimeEndBefore = (int)$secondItem->time_end;
+
+        $response = $this->post('/ajax/shipyard/halve-unit', [
+            '_token' => csrf_token(),
+            'queue_item_id' => $firstItem->id,
+        ]);
+
+        $response->assertStatus(200);
+        $this->assertTrue($response->json('success'), 'Halving should succeed');
+
+        $firstItem->refresh();
+        $secondItem->refresh();
+
+        $timeReduction = $firstTimeEndBefore - (int)$firstItem->time_end;
+        $this->assertGreaterThan(0, $timeReduction, 'Halving should reduce time_end of the active item');
+
+        // The future queue item must be shifted forward by exactly the same reduction.
+        $this->assertEquals($secondTimeStartBefore - $timeReduction, (int)$secondItem->time_start, 'Future queue item time_start should be reduced by the same amount');
+        $this->assertEquals($secondTimeEndBefore - $timeReduction, (int)$secondItem->time_end, 'Future queue item time_end should be reduced by the same amount');
+    }
 }
