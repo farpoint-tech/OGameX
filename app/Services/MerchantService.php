@@ -413,6 +413,13 @@ class MerchantService
                 'received' => $receivedAmounts,
             ];
         } catch (RuntimeException $e) {
+            // deductResources() syncs the in-memory planet model right after its
+            // UPDATE succeeds. A rollback restores the database but not that
+            // sync, so the model would keep showing the deducted resources for
+            // the rest of the request - and any later save() would persist a
+            // deduction the database has already rolled back.
+            $planet->reloadPlanet();
+
             return [
                 'success' => false,
                 'message' => __('t_merchant.error.trade.not_enough_resource', [
@@ -422,6 +429,8 @@ class MerchantService
                 ]),
             ];
         } catch (Exception $e) {
+            $planet->reloadPlanet();
+
             return [
                 'success' => false,
                 'message' => __('t_merchant.error.trade.execution_failed', ['error' => $e->getMessage()]),

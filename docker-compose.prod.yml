@@ -123,6 +123,15 @@ services:
       - ./php/local.ini:/usr/local/etc/php/conf.d/local.ini
     environment:
       CONTAINER_ROLE: reverb
+      # Required, same as the database credentials: anyone who knows the app
+      # key and secret can sign private-channel auth themselves and subscribe
+      # to other players' alliance and direct chats without ever touching the
+      # authorization callbacks in routes/channels.php. The placeholders in
+      # .env.example-prod are functional values, so an operator who only fixed
+      # the database settings would otherwise ship secrets published in the
+      # repository. Generate with: openssl rand -hex 16 / openssl rand -hex 32
+      REVERB_APP_KEY: ${REVERB_APP_KEY:?Set REVERB_APP_KEY in .env (openssl rand -hex 16)}
+      REVERB_APP_SECRET: ${REVERB_APP_SECRET:?Set REVERB_APP_SECRET in .env (openssl rand -hex 32)}
     ports:
       - "${REVERB_SERVER_PORT:-8090}:${REVERB_SERVER_PORT:-8090}"
     networks:

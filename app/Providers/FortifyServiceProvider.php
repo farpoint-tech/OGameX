@@ -38,13 +38,23 @@ class FortifyServiceProvider extends ServiceProvider
         Fortify::resetUserPasswordsUsing(ResetUserPassword::class);
 
         RateLimiter::for('login', function (Request $request) {
-            // Key the limit by email+IP. Deliberately NOT keyed by email alone:
-            // an email-only bucket would let an unauthenticated attacker lock an
-            // arbitrary account out of login entirely by exhausting the victim's
-            // bucket from any IP (targeted denial of service).
             $email = Str::transliterate(Str::lower((string) $request->input(Fortify::username())));
 
-            return Limit::perMinute(5)->by($email . '|' . $request->ip());
+            return [
+                // Per source IP. This bound is what limits how much bcrypt work
+                // a single source can force: authenticateUsing() below always
+                // runs a hash comparison (constant-time user enumeration
+                // defence), so without this an attacker could rotate the
+                // submitted e-mail on every request, get a fresh email+IP
+                // bucket each time and burn unbounded CPU.
+                Limit::perMinute(30)->by('login-ip|' . $request->ip()),
+
+                // Per account from one source: targeted brute force.
+                // Deliberately NOT keyed by e-mail alone: an email-only bucket
+                // would let an attacker lock an arbitrary account out of login
+                // entirely from any IP (targeted denial of service).
+                Limit::perMinute(5)->by($email . '|' . $request->ip()),
+            ];
         });
 
         RateLimiter::for('two-factor', function (Request $request) {
